@@ -144,17 +144,22 @@ export function placeOrder () {
           challengeUtils.solveIf(challenges.negativeOrderChallenge, () => { return totalPrice < 0 })
 
           if (req.body.UserId) {
+            const updatedUserId = customer?.data?.id
+            if (!updatedUserId || req.body.UserId != updatedUserId) { // eslint-disable-line eqeqeq
+              next(new Error('Blocked illegal activity by ' + (req.socket?.remoteAddress ?? 'unknown')))
+              return
+            }
             if (req.body.orderDetails && req.body.orderDetails.paymentId === 'wallet') {
-              const wallet = await WalletModel.findOne({ where: { UserId: req.body.UserId } })
+              const wallet = await WalletModel.findOne({ where: { UserId: updatedUserId } })
               if ((wallet != null) && wallet.balance >= totalPrice) {
-                await WalletModel.decrement({ balance: totalPrice }, { where: { UserId: req.body.UserId } })
+                await WalletModel.decrement({ balance: totalPrice }, { where: { UserId: updatedUserId } })
               } else {
                 next(new Error('Insufficient wallet balance.'))
                 return
               }
             }
             try {
-              await WalletModel.increment({ balance: totalPoints }, { where: { UserId: req.body.UserId } })
+              await WalletModel.increment({ balance: totalPoints }, { where: { UserId: updatedUserId } })
             } catch (error: unknown) {
               next(error)
               return

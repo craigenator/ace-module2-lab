@@ -5,6 +5,7 @@
 
 import { type Request, type Response, type NextFunction } from 'express'
 import { CardModel } from '../models/card'
+import * as security from '../lib/insecurity'
 
 interface displayCard {
   UserId: number
@@ -17,8 +18,14 @@ interface displayCard {
 
 export function getPaymentMethods () {
   return async (req: Request, res: Response, next: NextFunction) => {
+    const loggedInUser = security.authenticatedUsers.from(req)
+    const updatedUserId = loggedInUser?.data?.id
+    if (!updatedUserId || (req.body?.UserId !== undefined && req.body.UserId != updatedUserId)) { // eslint-disable-line eqeqeq
+      res.status(400).json({ status: 'error', data: 'Malicious activity detected' })
+      return
+    }
     const displayableCards: displayCard[] = []
-    const cards = await CardModel.findAll({ where: { UserId: req.body.UserId } })
+    const cards = await CardModel.findAll({ where: { UserId: updatedUserId } })
     cards.forEach(card => {
       const displayableCard: displayCard = {
         UserId: card.UserId,
@@ -38,7 +45,13 @@ export function getPaymentMethods () {
 
 export function getPaymentMethodById () {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const card = await CardModel.findOne({ where: { id: req.params.id, UserId: req.body.UserId } })
+    const loggedInUser = security.authenticatedUsers.from(req)
+    const updatedUserId = loggedInUser?.data?.id
+    if (!updatedUserId || (req.body?.UserId !== undefined && req.body.UserId != updatedUserId)) { // eslint-disable-line eqeqeq
+      res.status(400).json({ status: 'error', data: 'Malicious activity detected' })
+      return
+    }
+    const card = await CardModel.findOne({ where: { id: req.params.id, UserId: updatedUserId } })
     const displayableCard: displayCard = {
       UserId: 0,
       id: 0,
@@ -67,7 +80,13 @@ export function getPaymentMethodById () {
 
 export function delPaymentMethodById () {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const card = await CardModel.destroy({ where: { id: req.params.id, UserId: req.body.UserId } })
+    const loggedInUser = security.authenticatedUsers.from(req)
+    const updatedUserId = loggedInUser?.data?.id
+    if (!updatedUserId || (req.body?.UserId !== undefined && req.body.UserId != updatedUserId)) { // eslint-disable-line eqeqeq
+      res.status(400).json({ status: 'error', data: 'Malicious activity detected.' })
+      return
+    }
+    const card = await CardModel.destroy({ where: { id: req.params.id, UserId: updatedUserId } })
     if (card) {
       res.status(200).json({ status: 'success', data: 'Card deleted successfully.' })
     } else {
